@@ -299,6 +299,40 @@ st.set_page_config(
 st.title("Generator Catatan SOAP Gabungan")
 st.write("Aplikasi ini menggunakan AI untuk menghasilkan catatan SOAP yang relevan dengan peran yang Anda pilih.")
 
+st.markdown("---")
+
+st.markdown("## Cara Menggunakan Aplikasi")
+st.markdown("### 🔑 Kunci API Google")
+st.markdown("""
+Aplikasi ini memanfaatkan model AI Google Gemini. Untuk menggunakannya, Anda harus memasukkan **kunci API** pribadi Anda.
+
+1.  Kunjungi **Google AI Studio** di [https://aistudio.google.com/](https://aistudio.google.com/).
+2.  Masuk dengan akun Google Anda dan ikuti petunjuk untuk membuat kunci API.
+3.  Salin kunci API yang dibuat dan tempelkan di kolom yang tersedia di **sidebar** (panel samping).
+""")
+
+st.markdown("### ⚠️ Konsekuensi Biaya")
+st.markdown("""
+Penggunaan API Gemini memiliki batas gratis yang sangat besar. Namun, penting untuk dipahami bahwa setelah batas tersebut terlampaui, akan ada biaya yang dikenakan oleh Google. Aplikasi ini **TIDAK** mengenakan biaya apapun; biaya sepenuhnya dikelola oleh Google berdasarkan penggunaan kunci API Anda.
+
+* **Model**: `gemini-2.5-flash`
+* **Tarif**: Sekitar $0.0001 per 1.000 karakter (harga dapat berubah, cek situs Google AI untuk informasi terbaru).
+* **Penting**: Kunci API Anda terhubung dengan akun Google Cloud Anda. Pantau penggunaan Anda di Google Cloud Console untuk menghindari biaya tak terduga.
+""")
+
+st.markdown("### 📝 Input Klien")
+st.markdown("""
+* **Pilih Isu Konseling**: Pilih dari daftar isu adiksi yang relevan dengan kasus klien.
+* **Deskripsi Klien**: Masukkan detail spesifik tentang klien (usia, latar belakang, riwayat penggunaan, perilaku selama sesi, dll.). Semakin detail deskripsi Anda, semakin akurat catatan SOAP yang dihasilkan.
+""")
+
+st.markdown("### ✨ Konsep SMART pada Rencana (P) pada KONSELOR")
+st.markdown("""
+Bagian **P (Planning)** pada catatan SOAP akan dihasilkan dengan mengikuti konsep **SMART**. Setiap poin intervensi akan dilengkapi dengan penjelasan singkat yang menunjukkan bagaimana poin tersebut memenuhi kriteria SMART.
+""")
+
+st.markdown("---")
+
 # --- Masukan Kunci API di sidebar
 with st.sidebar:
     st.subheader("Kunci API")
@@ -380,4 +414,5 @@ if st.button("Hasilkan Catatan SOAP Lengkap"):
 
 # Informasi tambahan
 st.markdown("---")
+
 st.info("Aplikasi ini dibuat sebagai contoh. Isi catatan harus disesuaikan dengan kondisi spesifik klien dan diverifikasi oleh tenaga profesional.")
