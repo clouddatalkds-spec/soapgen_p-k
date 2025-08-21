@@ -297,7 +297,7 @@ st.set_page_config(
 
 # Judul utama aplikasi
 st.title("Generator Catatan SOAP Gabungan")
-st.write("Aplikasi ini menggunakan AI untuk menghasilkan catatan SOAP yang relevan dengan peran yang Anda pilih.")
+st.write("Aplikasi ini menggunakan AI untuk menghasilkan catatan SOAP yang relevan dengan peran yang Anda pilih. INGAT ini hanya alat bantu")
 
 st.markdown("---")
 
@@ -416,3 +416,4 @@ if st.button("Hasilkan Catatan SOAP Lengkap"):
 st.markdown("---")
 
 st.info("Aplikasi ini dibuat sebagai contoh. Isi catatan harus disesuaikan dengan kondisi spesifik klien dan diverifikasi oleh tenaga profesional.")
+
