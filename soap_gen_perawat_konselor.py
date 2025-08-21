@@ -1,8 +1,6 @@
 import streamlit as st
 import asyncio
-import json
 import httpx
-
 
 # --- Data untuk Perawat ---
 nursing_diagnoses_list = [
@@ -128,8 +126,8 @@ nursing_diagnoses_list = [
     "Gangguan Proses Keluarga",
     "Isolasi Sosial",
     "Kesiapan Peningkatan Menjadi Orang Tua",
-    "Kesiapan Peningkatan Proses Keluarga",
-]
+    "Kesiapan Peningkatan Proses Keluarga"
+    ]
 
 nursing_prompt_template = """
 Sebagai perawat, buatlah catatan keperawatan lengkap dengan format SOAP (Subjective, Objective, Assessment, Planning) untuk diagnosis keperawatan berikut: {diagnosis}.
@@ -149,6 +147,37 @@ S: [Teks subjektif]
 O: [Teks objektif]
 A: [Teks asesmen]
 P: [Teks perencanaan]
+"""
+
+nursing_care_plan_prompt_template = """
+Sebagai perawat, buatlah rencana keperawatan yang komprehensif untuk pasien berdasarkan deskripsi berikut:
+{description}
+
+Berdasarkan deskripsi pasien di atas, identifikasi 2 Diagnosa Keperawatan yang paling relevan dari daftar berikut:
+{diagnosis_list_str}
+
+Berdasarkan deskripsi pasien di atas, identifikasi 1 Diagnosa Resiko yang paling relevan dari daftar berikut:
+{diagnosis_list_str}
+
+
+Gunakan format di bawah ini, dengan setiap bagian yang jelas:
+
+**Diagnosa Keperawatan yang Muncul:**
+Sebutkan diagnosis yang paling relevan dari daftar, diikuti dengan Data Subjektif dan Data Objektif yang mendukung dari deskripsi pasien.
+
+**Diagnosa Resiko yang Muncul:**
+Sebutkan diagnosis resiko yang paling relevan dari daftar, diikuti dengan Data Dukung.
+
+**Tujuan:**
+Sebutkan tujuan jangka pendek (misalnya, dalam 3 hari) dan tujuan jangka panjang (misalnya, dalam 1 minggu) yang realistis.
+
+**Intervensi:**
+Daftar setidaknya 3 intervensi keperawatan yang spesifik dan dapat dilakukan untuk mencapai tujuan.
+
+**Rasional:**
+Berikan alasan ilmiah atau tujuan dari setiap intervensi yang Anda sebutkan.
+
+Pastikan output Anda terstruktur, profesional, dan mudah dibaca.
 """
 
 # --- Data untuk Konselor Adiksi ---
@@ -202,7 +231,7 @@ addiction_diagnoses_list = [
 ]
 
 addiction_prompt_template = """
-Sebagai konselor adiksi di sebuah lembaga rehabilitasi, buatlah catatan konseling dengan format SOAP (Subjective, Objective, Assessment, Planning) untuk klien yang menghadapi isu konseling berikut: {diagnosis}.
+Sebagai konselor adiksi pada lembaga rehabilitasi narkotika rawat inap, buatlah catatan konseling dengan format SOAP (Subjective, Objective, Assessment, Planning) untuk klien yang menghadapi isu konseling berikut: {diagnosis}.
 
 Gunakan deskripsi klien berikut untuk membuat catatan yang lebih spesifik:
 {description}
@@ -221,12 +250,41 @@ A: [Teks asesmen konselor]
 P: [Teks perencanaan konselor]
 """
 
+# --- Prompt baru untuk Rencana Rawatan Adiksi ---
+# --- Prompt baru untuk Rencana Rawatan Adiksi ---
+treatment_plan_prompt_template = """
+Sebagai konselor adiksi profesional pada lembaga rehabilitasi narkotika rawat inap, buatlah rencana rawatan yang komprehensif untuk klien berdasarkan deskripsi berikut:
+{description}
+
+Berdasarkan deskripsi klien di atas, identifikasi dan daftar setidaknya 3 isu konseling yang paling relevan dari daftar berikut:
+{diagnosis_list_str}
+
+**Kekuatan Klien:**
+Identifikasi dan daftar minimal 3 kekuatan utama klien yang dapat dimanfaatkan dalam proses pemulihan.
+
+**Potensi Hambatan/Kebutuhan yang Teridentifikasi:**
+Daftar potensi hambatan atau kebutuhan spesifik yang mungkin dihadapi klien selama proses rawatan.
+
+**Tujuan Jangka Panjang:**
+Buat setidaknya 3 tujuan jangka panjang. Gunakan konsep SMART (Specific, Measurable, Achievable, Relevant, Time-bound) dan jadikan satu kalimat utuh.
+
+**Tujuan Jangka Pendek:**
+Buat setidaknya 5 tujuan jangka pendek. Gunakan konsep SMART dan jadikan satu kalimat utuh.
+
+**Sasaran:**
+Daftar setidaknya 5 sasaran yang spesifik dan terukur untuk mencapai tujuan jangka pendek. Sasaran harus menjadi langkah-langkah yang dapat dicapai.
+
+**Intervensi:**
+Daftar setidaknya 5 intervensi yang relevan dan dapat dilakukan untuk membantu klien mencapai sasaran mereka. Intervensi harus praktis dan berfokus pada tindakan.
+
+Pastikan output Anda terstruktur, profesional, dan mudah dibaca.
+"""
+
 # Fungsi untuk membuat panggilan API async ke model Gemini
 async def generate_text_from_model(prompt):
     """
     Menghasilkan teks menggunakan Gemini API berdasarkan prompt yang diberikan.
     """
-    # Ambil API_KEY dari session_state
     api_key = st.session_state.get('api_key', None)
     if not api_key:
         st.error("Kesalahan: Kunci API tidak ditemukan. Silakan masukkan kunci API Anda.")
@@ -246,14 +304,13 @@ async def generate_text_from_model(prompt):
         apiUrl = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key={api_key}"
         
         async with httpx.AsyncClient() as client:
-            # Implementasi exponential backoff untuk mencoba kembali
-            for i in range(5):  # Maksimal 5 kali percobaan
+            for i in range(5):
                 try:
                     response = await client.post(
                         apiUrl,
                         headers={"Content-Type": "application/json"},
                         json=payload,
-                        timeout=30.0  # Atur batas waktu yang wajar
+                        timeout=30.0
                     )
                     response.raise_for_status()
                     result = response.json()
@@ -267,37 +324,43 @@ async def generate_text_from_model(prompt):
                 except httpx.HTTPStatusError as e:
                     if e.response.status_code in [429, 503] and i < 4:
                         st.warning(f"Batas laju API terlampaui atau layanan tidak tersedia. Mencoba lagi dalam {2**i} detik...")
-                        await asyncio.sleep(2**i)  # Exponential backoff
+                        await asyncio.sleep(2**i)
                     else:
                         raise e
     except Exception as e:
         st.error(f"Kesalahan selama panggilan API: {e}")
         return None
 
-async def generate_soap_note_async(diagnosis_key, description, prompt_template):
+async def generate_note_async(description, prompt_template, issues_list=None):
     """
-    Menghasilkan catatan SOAP lengkap secara asinkron dengan memanggil LLM.
+    Menghasilkan catatan secara asinkron dengan memanggil LLM.
     """
-    prompt = prompt_template.format(diagnosis=diagnosis_key, description=description)
-    
-    with st.spinner("Sedang menghasilkan catatan SOAP..."):
+    prompt = ""
+    if issues_list:
+        diagnosis_list_str = ", ".join(issues_list)
+        prompt = prompt_template.format(description=description, diagnosis_list_str=diagnosis_list_str)
+    else:
+        # Menangani prompt yang tidak memerlukan daftar diagnosis
+        prompt = prompt_template.format(description=description)
+
+    with st.spinner("Sedang menghasilkan catatan..."):
         full_note_raw = await generate_text_from_model(prompt)
 
     if not full_note_raw:
-        return "Gagal menghasilkan catatan SOAP. Pastikan kunci API Anda valid dan terisi."
+        return "Gagal menghasilkan catatan. Pastikan kunci API Anda valid dan terisi."
     
     return full_note_raw
 
 # Pengaturan halaman Streamlit
 st.set_page_config(
-    page_title="Generator Catatan SOAP Gabungan",
+    page_title="Generator Catatan SOAP dan Rencana Rawatan",
     layout="centered",
     initial_sidebar_state="expanded"
 )
 
 # Judul utama aplikasi
-st.title("Generator Catatan SOAP Gabungan")
-st.write("Aplikasi ini menggunakan AI untuk menghasilkan catatan SOAP yang relevan dengan peran yang Anda pilih. INGAT ini hanya alat bantu")
+st.title("Generator Catatan SOAP dan Rencana Rawatan")
+st.write("Aplikasi ini menggunakan AI untuk menghasilkan catatan yang relevan dengan peran yang Anda pilih.INGAT ini hanya alat bantu")
 
 st.markdown("---")
 
@@ -309,27 +372,17 @@ Aplikasi ini memanfaatkan model AI Google Gemini. Untuk menggunakannya, Anda har
 1.  Kunjungi **Google AI Studio** di [https://aistudio.google.com/](https://aistudio.google.com/).
 2.  Masuk dengan akun Google Anda dan ikuti petunjuk untuk membuat kunci API.
 3.  Salin kunci API yang dibuat dan tempelkan di kolom yang tersedia di **sidebar** (panel samping).
+4.  Kunci API bersifat PRIBADI dan RAHASIA maka diharapkan menjaganya.
 """)
 
 st.markdown("### ⚠️ Konsekuensi Biaya")
 st.markdown("""
-Penggunaan API Gemini memiliki batas gratis yang sangat besar. Namun, penting untuk dipahami bahwa setelah batas tersebut terlampaui, akan ada biaya yang dikenakan oleh Google. Aplikasi ini **TIDAK** mengenakan biaya apapun; biaya sepenuhnya dikelola oleh Google berdasarkan penggunaan kunci API Anda.
+Penggunaan API Gemini memiliki batas GRATIS yang sangat besar. Namun, penting untuk dipahami bahwa setelah batas tersebut terlampaui, akan ada biaya yang dikenakan oleh Google. Aplikasi ini **TIDAK** mengenakan biaya apapun; biaya sepenuhnya dikelola oleh Google berdasarkan penggunaan kunci API Anda.
 
 * **Model**: `gemini-2.5-flash`
-* **Tarif**: Sekitar $0.0001 per 1.000 karakter (harga dapat berubah, cek situs Google AI untuk informasi terbaru).
 * **Penting**: Kunci API Anda terhubung dengan akun Google Cloud Anda. Pantau penggunaan Anda di Google Cloud Console untuk menghindari biaya tak terduga.
 """)
-
-st.markdown("### 📝 Input Klien")
-st.markdown("""
-* **Pilih Isu Konseling**: Pilih dari daftar isu adiksi yang relevan dengan kasus klien.
-* **Deskripsi Klien**: Masukkan detail spesifik tentang klien (usia, latar belakang, riwayat penggunaan, perilaku selama sesi, dll.). Semakin detail deskripsi Anda, semakin akurat catatan SOAP yang dihasilkan.
-""")
-
-st.markdown("### ✨ Konsep SMART pada Rencana (P) pada KONSELOR")
-st.markdown("""
-Bagian **P (Planning)** pada catatan SOAP akan dihasilkan dengan mengikuti konsep **SMART**. Setiap poin intervensi akan dilengkapi dengan penjelasan singkat yang menunjukkan bagaimana poin tersebut memenuhi kriteria SMART.
-""")
+#* **Tarif**: Sekitar $0.0001 per 1.000 karakter (harga dapat berubah, cek situs Google AI untuk informasi terbaru).
 
 st.markdown("---")
 
@@ -345,16 +398,14 @@ with st.sidebar:
         st.session_state['api_key'] = api_key_input
         st.success("Kunci API berhasil disimpan!")
     
-    # Hapus kunci API jika tombol ditekan (opsional)
     if st.button("Hapus Kunci API"):
         if 'api_key' in st.session_state:
             del st.session_state['api_key']
             st.info("Kunci API telah dihapus dari sesi.")
 
-# Tampilkan pesan jika kunci API belum dimasukkan
 if 'api_key' not in st.session_state:
     st.warning("Silakan masukkan kunci API Anda di sidebar untuk menggunakan aplikasi.")
-    st.stop() # Hentikan eksekusi kode utama hingga kunci terisi
+    st.stop()
 
 # --- Pilih peran (role) aplikasi
 selected_role = st.radio(
@@ -362,58 +413,144 @@ selected_role = st.radio(
     options=["Perawat", "Konselor Adiksi"],
 )
 
-# Berdasarkan peran yang dipilih, atur data yang relevan
+# --- Pilih jenis dokumen
+document_type = None
 if selected_role == "Perawat":
-    st.subheader("Generator Catatan SOAP Keperawatan")
-    st.write("Buat catatan keperawatan berdasarkan diagnosis keperawatan.")
-    diagnoses_list = nursing_diagnoses_list
-    prompt_template = nursing_prompt_template
-    issue_label = "Pilih Diagnosis Keperawatan:"
-    issue_help = "Pilih diagnosis yang paling sesuai dengan kondisi pasien."
-    description_label = "Deskripsi Pasien"
-    description_help = "Masukkan detail tentang pasien, seperti usia, jenis kelamin, keluhan tambahan, dan riwayat kesehatan yang relevan."
+    document_type = st.radio(
+        "Pilih Jenis Dokumen:",
+        options=["Catatan SOAP", "Rencana Keperawatan"]
+    )
 elif selected_role == "Konselor Adiksi":
-    st.subheader("Generator Catatan SOAP Konseling Adiksi")
-    st.write("Buat catatan konseling berdasarkan isu-isu adiksi.")
-    diagnoses_list = addiction_diagnoses_list
-    prompt_template = addiction_prompt_template
-    issue_label = "Pilih Isu Konseling Adiksi:"
-    issue_help = "Pilih isu yang paling sesuai dengan kondisi klien."
-    description_label = "Deskripsi Klien"
-    description_help = "Masukkan detail tentang klien, seperti usia, latar belakang, dan riwayat penggunaan zat atau perilaku."
+    document_type = st.radio(
+        "Pilih Jenis Dokumen:",
+        options=["Catatan SOAP", "Rencana Rawatan Adiksi"]
+    )
 
 # --- Bagian utama aplikasi
-selected_issue = st.selectbox(
-    issue_label,
-    options=diagnoses_list,
-    help=issue_help
-)
+if selected_role == "Perawat":
+    if document_type == "Catatan SOAP":
+        st.subheader("Generator Catatan SOAP Keperawatan")
+        st.write("Buat catatan keperawatan berdasarkan diagnosis keperawatan.")
+        diagnoses_list = nursing_diagnoses_list
+        prompt_template = nursing_prompt_template
+        issue_label = "Pilih Diagnosis Keperawatan:"
+        issue_help = "Pilih diagnosis yang paling sesuai dengan kondisi pasien."
+        description_label = "Deskripsi Pasien"
+        description_help = "Masukkan detail tentang pasien, seperti usia, jenis kelamin, keluhan tambahan, dan riwayat kesehatan yang relevan."
+        
+        selected_issue = st.selectbox(
+            issue_label,
+            options=diagnoses_list,
+            help=issue_help
+        )
 
-patient_description = st.text_area(
-    description_label,
-    height=150,
-    help=description_help,
-    placeholder="Contoh: Pasien laki-laki, 65 tahun, pasca stroke. Mengalami kesulitan menelan dan sering tersedak saat makan. Sering mengeluhkan tenggorokannya terasa 'tercekik'."
-)
+        patient_description = st.text_area(
+            description_label,
+            height=150,
+            help=description_help,
+            placeholder="Contoh: Pasien laki-laki, 65 tahun, pasca stroke. Mengalami kesulitan menelan dan sering tersedak saat makan. Sering mengeluhkan tenggorokannya terasa 'tercekik'."
+        )
+        
+        if st.button("Hasilkan Catatan SOAP Lengkap"):
+            st.markdown("---")
+            full_note = asyncio.run(generate_note_async(patient_description, prompt_template, issue=selected_issue))
+            st.subheader("Catatan SOAP Lengkap")
+            st.text_area(
+                "Salin teks di bawah:",
+                value=full_note,
+                height=350,
+                help="Klik di dalam kotak teks, lalu gunakan Ctrl+C (atau Cmd+C) untuk menyalin."
+            )
+            st.markdown("---")
+            
+    elif document_type == "Rencana Keperawatan":
+        st.subheader("Generator Rencana Keperawatan")
+        st.write("Hasilkan rencana keperawatan yang komprehensif.")
+        
+        description_label = "Deskripsi Pasien"
+        description_help = "Masukkan detail lengkap tentang pasien, termasuk kondisi medis, gejala, dan informasi relevan lainnya untuk membuat rencana yang akurat."
+        
+        patient_description = st.text_area(
+            description_label,
+            height=200,
+            help=description_help,
+            placeholder="Contoh: Pasien laki-laki, 65 tahun, pasca stroke. Mengalami kesulitan menelan dan sering tersedak saat makan. Sering mengeluhkan tenggorokannya terasa 'tercekik'."
+        )
+        
+        if st.button("Hasilkan Rencana Keperawatan Lengkap"):
+            st.markdown("---")
+            full_note = asyncio.run(generate_note_async(patient_description, nursing_care_plan_prompt_template, issues_list=nursing_diagnoses_list))
+            st.subheader("Rencana Keperawatan Lengkap")
+            st.text_area(
+                "Salin teks di bawah:",
+                value=full_note,
+                height=500,
+                help="Klik di dalam kotak teks, lalu gunakan Ctrl+C (atau Cmd+C) untuk menyalin."
+            )
+            st.markdown("---")
 
-# Tombol untuk menghasilkan catatan SOAP lengkap
-if st.button("Hasilkan Catatan SOAP Lengkap"):
-    st.markdown("---")
-    
-    full_note = asyncio.run(generate_soap_note_async(selected_issue, patient_description, prompt_template))
-    
-    st.subheader("Catatan SOAP Lengkap")
-    st.text_area(
-        "Salin teks di bawah:",
-        value=full_note,
-        height=350,
-        help="Klik di dalam kotak teks, lalu gunakan Ctrl+C (atau Cmd+C) untuk menyalin."
-    )
-    
-    st.markdown("---")
 
-# Informasi tambahan
+elif selected_role == "Konselor Adiksi":
+    if document_type == "Catatan SOAP":
+        st.subheader("Generator Catatan SOAP Konseling Adiksi")
+        st.write("Buat catatan konseling berdasarkan isu-isu adiksi.")
+        diagnoses_list = addiction_diagnoses_list
+        prompt_template = addiction_prompt_template
+        issue_label = "Pilih Isu Konseling Adiksi:"
+        issue_help = "Pilih isu yang paling sesuai dengan kondisi klien."
+        description_label = "Deskripsi Klien"
+        description_help = "Masukkan detail tentang klien, seperti usia, latar belakang, dan riwayat penggunaan zat atau perilaku."
+
+        selected_issue = st.selectbox(
+            issue_label,
+            options=diagnoses_list,
+            help=issue_help
+        )
+
+        patient_description = st.text_area(
+            description_label,
+            height=150,
+            help=description_help,
+            placeholder="Contoh: Klien laki-laki, 25 tahun, memiliki riwayat penyalahgunaan opioid sejak 5 tahun lalu. Datang ke sesi dengan ekspresi cemas dan melaporkan kesulitan mengelola 'craving' saat menghadapi stres dari pekerjaan."
+        )
+        
+        if st.button("Hasilkan Catatan SOAP Lengkap"):
+            st.markdown("---")
+            full_note = asyncio.run(generate_note_async(patient_description, prompt_template, issues_list=[selected_issue]))
+            st.subheader("Catatan SOAP Lengkap")
+            st.text_area(
+                "Salin teks di bawah:",
+                value=full_note,
+                height=350,
+                help="Klik di dalam kotak teks, lalu gunakan Ctrl+C (atau Cmd+C) untuk menyalin."
+            )
+            st.markdown("---")
+
+    elif document_type == "Rencana Rawatan Adiksi":
+        st.subheader("Generator Rencana Rawatan Adiksi")
+        st.write("Hasilkan rencana rawatan komprehensif. AI akan mengidentifikasi isu konseling yang relevan dari daftar.")
+        
+        description_label = "Deskripsi Klien"
+        description_help = "Masukkan detail lengkap tentang klien, termasuk riwayat adiksi, situasi hidup, dan informasi relevan lainnya untuk membuat rencana yang akurat."
+        
+        patient_description = st.text_area(
+            description_label,
+            height=200,
+            help=description_help,
+            placeholder="Contoh: Klien laki-laki, 30 tahun, lajang. Riwayat penyalahgunaan alkohol selama 10 tahun, mengalami kecanduan berat. Sudah berhenti selama 2 minggu. Klien memiliki dukungan keluarga yang kuat dan pekerjaan yang stabil. Namun, ia merasa cemas saat bersosialisasi dan takut kembali ke lingkungan lama yang memicu penggunaan."
+        )
+
+        if st.button("Hasilkan Rencana Rawatan Lengkap"):
+            st.markdown("---")
+            full_note = asyncio.run(generate_note_async(patient_description, treatment_plan_prompt_template, issues_list=addiction_diagnoses_list))
+            st.subheader("Rencana Rawatan Lengkap")
+            st.text_area(
+                "Salin teks di bawah:",
+                value=full_note,
+                height=500,
+                help="Klik di dalam kotak teks, lalu gunakan Ctrl+C (atau Cmd+C) untuk menyalin."
+            )
+            st.markdown("---")
+
 st.markdown("---")
-
 st.info("Aplikasi ini dibuat sebagai contoh. Isi catatan harus disesuaikan dengan kondisi spesifik klien dan diverifikasi oleh tenaga profesional.")
-
