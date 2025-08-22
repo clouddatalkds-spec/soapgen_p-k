@@ -126,8 +126,8 @@ nursing_diagnoses_list = [
     "Gangguan Proses Keluarga",
     "Isolasi Sosial",
     "Kesiapan Peningkatan Menjadi Orang Tua",
-    "Kesiapan Peningkatan Proses Keluarga"
-    ]
+    "Kesiapan Peningkatan Proses Keluarga",
+]
 
 nursing_prompt_template = """
 Sebagai perawat, buatlah catatan keperawatan lengkap dengan format SOAP (Subjective, Objective, Assessment, Planning) untuk diagnosis keperawatan berikut: {diagnosis}.
@@ -251,7 +251,6 @@ P: [Teks perencanaan konselor]
 """
 
 # --- Prompt baru untuk Rencana Rawatan Adiksi ---
-# --- Prompt baru untuk Rencana Rawatan Adiksi ---
 treatment_plan_prompt_template = """
 Sebagai konselor adiksi profesional pada lembaga rehabilitasi narkotika rawat inap, buatlah rencana rawatan yang komprehensif untuk klien berdasarkan deskripsi berikut:
 {description}
@@ -336,9 +335,12 @@ async def generate_note_async(description, prompt_template, issues_list=None):
     Menghasilkan catatan secara asinkron dengan memanggil LLM.
     """
     prompt = ""
-    if issues_list:
+    if issues_list and "{diagnosis_list_str}" in prompt_template:
         diagnosis_list_str = ", ".join(issues_list)
         prompt = prompt_template.format(description=description, diagnosis_list_str=diagnosis_list_str)
+    elif issues_list and "{diagnosis}" in prompt_template:
+        # For single diagnosis, SOAP notes
+        prompt = prompt_template.format(description=description, diagnosis=issues_list[0])
     else:
         # Menangani prompt yang tidak memerlukan daftar diagnosis
         prompt = prompt_template.format(description=description)
@@ -360,7 +362,7 @@ st.set_page_config(
 
 # Judul utama aplikasi
 st.title("Generator Catatan SOAP dan Rencana Rawatan")
-st.write("Aplikasi ini menggunakan AI untuk menghasilkan catatan yang relevan dengan peran yang Anda pilih.INGAT ini hanya alat bantu")
+st.write("Aplikasi ini menggunakan AI untuk menghasilkan catatan yang relevan dengan peran yang Anda pilih. INGAT ini hanya alat bantu.")
 
 st.markdown("---")
 
@@ -382,7 +384,6 @@ Penggunaan API Gemini memiliki batas GRATIS yang sangat besar. Namun, penting un
 * **Model**: `gemini-2.5-flash`
 * **Penting**: Kunci API Anda terhubung dengan akun Google Cloud Anda. Pantau penggunaan Anda di Google Cloud Console untuk menghindari biaya tak terduga.
 """)
-#* **Tarif**: Sekitar $0.0001 per 1.000 karakter (harga dapat berubah, cek situs Google AI untuk informasi terbaru).
 
 st.markdown("---")
 
@@ -453,7 +454,7 @@ if selected_role == "Perawat":
         
         if st.button("Hasilkan Catatan SOAP Lengkap"):
             st.markdown("---")
-            full_note = asyncio.run(generate_note_async(patient_description, prompt_template, issue=selected_issue))
+            full_note = asyncio.run(generate_note_async(patient_description, prompt_template, issues_list=[selected_issue]))
             st.subheader("Catatan SOAP Lengkap")
             st.text_area(
                 "Salin teks di bawah:",
